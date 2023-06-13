@@ -160,13 +160,13 @@ class NuScenesDataset(Dataset):
                 if is_insquare(rotated_points[0], [0., 0.], self.ego_range):
                     augmented_points = np.hstack([rotated_points, 
                                                   (instance['translation'][-1]-ego_vehicle['translation'][-1])*np.ones((5,1)), 
-                                                  np.ones((5,1))])
+                                                  np.ones((5,2))])
                     
-                    object_points.append(np.vstack([augmented_points, np.zeros((self._number_future_road_points-5, 4))]))
+                    object_points.append(np.vstack([augmented_points, np.zeros((self._number_future_road_points-5, 5))]))
         
         object_points = np.array(object_points)
         if object_points.shape[0] == 0:
-            return np.zeros((self._max_number_construction_objs, self._number_future_road_points, 4))
+            return np.zeros((self._max_number_construction_objs, self._number_future_road_points, 5))
         indices = np.argsort(np.linalg.norm(object_points[:,0,:], axis=1)).tolist()   
         object_points = object_points[indices]
         n_objs, _, _ = object_points.shape
@@ -174,10 +174,10 @@ class NuScenesDataset(Dataset):
         if n_objs >= self._max_number_construction_objs:
             return object_points[:self._max_number_construction_objs,:,:]
         else:
-            return np.vstack([object_points, np.zeros((self._max_number_construction_objs-n_objs,self._number_future_road_points,4))])
+            return np.vstack([object_points, np.zeros((self._max_number_construction_objs-n_objs,self._number_future_road_points,5))])
 
     def _get_map_features(self, nusc_map, x, y, yaw, radius, reference_position):
-        curr_map = np.zeros((self._max_number_roads, self._number_future_road_points, 4))
+        curr_map = np.zeros((self._max_number_roads, self._number_future_road_points, 5))
         lanes = get_lanes_in_radius(x=x, y=y, radius=200, map_api=nusc_map, discretization_meters=2.0)
 
         # need to combine lanes that are connected to avoid random gaps.
