@@ -44,7 +44,7 @@ if __name__ == '__main__':
     scene_translation = f.create_dataset("translation", shape=(num_scenes, 3), chunks=(1, 3))
     scene_rotation = f.create_dataset("rotation", shape=(num_scenes, 4), chunks=(1, 4))
     agent_types = f.create_dataset("agents_types", shape=(num_scenes, max_num_agents+1), chunks=(1, max_num_agents+1), dtype='S50')
-    road_pts = f.create_dataset("road_pts", shape=(num_scenes, 150, 40, 4), chunks=(1, 150, 40, 4), dtype=np.float16)
+    road_pts = f.create_dataset("road_pts", shape=(num_scenes, 150, 40, 5), chunks=(1, 150, 40, 5), dtype=np.float16)
     road_imgs = f.create_dataset("large_roads", shape=(num_scenes, 750, 750, 3), chunks=(1, 750, 750, 3), dtype=np.uint8)
 
     for i, data in enumerate(nuscenes):

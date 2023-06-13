@@ -208,6 +208,7 @@ class NuScenesDataset(Dataset):
                 road_pts = []
                 for pt in pts:
                     pt = list(pt)
+                    pt.append(0.0)
                     pt.append(1.0)
                     pt = np.array(pt)
                     road_pts.append(pt)
