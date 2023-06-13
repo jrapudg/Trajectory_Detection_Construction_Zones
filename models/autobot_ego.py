@@ -79,25 +79,25 @@ class AutoBotEgo(nn.Module):
 
         init_ = lambda m: init(m, nn.init.xavier_normal_, lambda x: nn.init.constant_(x, 0), np.sqrt(2))
 
-        print("map_attr : {}".format(map_attr))
+        #print("map_attr : {}".format(map_attr))
         self.map_attr = map_attr
-        print("k_attr : {}".format(k_attr))
+        #print("k_attr : {}".format(k_attr))
         self.k_attr = k_attr
         self.d_k = d_k
-        print("_M : {}".format(_M))
+        #print("_M : {}".format(_M))
         self._M = _M  # num agents without the ego-agent
-        print("c : {}".format(c))
+        #print("c : {}".format(c))
         self.c = c
-        print("T : {}".format(T))
+        #print("T : {}".format(T))
         self.T = T
-        print("L_enc : {}".format(L_enc))
+        #print("L_enc : {}".format(L_enc))
         self.L_enc = L_enc
         self.dropout = dropout
-        print("num_heads : {}".format(num_heads))
+        #print("num_heads : {}".format(num_heads))
         self.num_heads = num_heads
-        print("L_dec : {}".format(L_dec))
+        #print("L_dec : {}".format(L_dec))
         self.L_dec= L_dec
-        print("tx_hidden_size : {}".format(tx_hidden_size))
+        #print("tx_hidden_size : {}".format(tx_hidden_size))
         self.tx_hidden_size = tx_hidden_size
         self.use_map_img = use_map_img
         self.use_map_lanes = use_map_lanes
@@ -200,7 +200,7 @@ class AutoBotEgo(nn.Module):
         num_agents = agent_masks.size(2)
         temp_masks = agent_masks.permute(0, 2, 1).reshape(-1, T_obs)
         temp_masks[:, -1][temp_masks.sum(-1) == T_obs] = False  # Ensure that agent's that don't exist don't make NaN.
-        print("Temporal agents embeddings: {}".format(agents_emb.reshape(T_obs, B * (num_agents), -1).size()))
+        #print("Temporal agents embeddings: {}".format(agents_emb.reshape(T_obs, B * (num_agents), -1).size()))
         agents_temp_emb = layer(self.pos_encoder(agents_emb.reshape(T_obs, B * (num_agents), -1)),
                                 src_key_padding_mask=temp_masks)
         return agents_temp_emb.view(T_obs, B, num_agents, -1)
@@ -214,10 +214,10 @@ class AutoBotEgo(nn.Module):
         T_obs = agents_emb.size(0)
         B = agent_masks.size(0)
         agents_emb = agents_emb.permute(2, 1, 0, 3).reshape(self._M + 1, B * T_obs, -1)
-        print("Social attn agents embeddings permutation: {}".format(agents_emb.size()))
+        #print("Social attn agents embeddings permutation: {}".format(agents_emb.size()))
         agents_soc_emb = layer(agents_emb, src_key_padding_mask=agent_masks.view(-1, self._M+1))
         agents_soc_emb = agents_soc_emb.view(self._M+1, B, T_obs, -1).permute(2, 1, 0, 3)
-        print("Social embeddings permutation: {}".format(agents_soc_emb.size()))
+        #print("Social embeddings permutation: {}".format(agents_soc_emb.size()))
         return agents_soc_emb
 
     def forward(self, ego_in, agents_in, roads):
@@ -236,20 +236,20 @@ class AutoBotEgo(nn.Module):
 
         # Encode all input observations (k_attr --> d_k)
         ego_tensor, _agents_tensor, opps_masks, env_masks = self.process_observations(ego_in, agents_in)
-        print("ego_tensor: {}".format(ego_tensor.size()))
-        print("_agents_tensor: {}".format(_agents_tensor.size()))
-        print("opps_masks: {}".format(opps_masks.size()))
-        print("env_masks: {}".format(env_masks.size()))
+        #print("ego_tensor: {}".format(ego_tensor.size()))
+        #print("_agents_tensor: {}".format(_agents_tensor.size()))
+        #print("opps_masks: {}".format(opps_masks.size()))
+        #print("env_masks: {}".format(env_masks.size()))
 
         agents_tensor = torch.cat((ego_tensor.unsqueeze(2), _agents_tensor), dim=2)
         agents_emb = self.agents_dynamic_encoder(agents_tensor).permute(1, 0, 2, 3)
-        print("agents_emb: {}".format(agents_emb))
+        #print("agents_emb: {}".format(agents_emb))
         # Process through AutoBot's encoder
         for i in range(self.L_enc):
             agents_emb = self.temporal_attn_fn(agents_emb, opps_masks, layer=self.temporal_attn_layers[i])
             agents_emb = self.social_attn_fn(agents_emb, opps_masks, layer=self.social_attn_layers[i])
         ego_soctemp_emb = agents_emb[:, :, 0]  # take ego-agent encodings only.
-        print("ego_soctemp_emb: {}".format(ego_soctemp_emb.size()))
+        #print("ego_soctemp_emb: {}".format(ego_soctemp_emb.size()))
 
         # Process map information
         if self.use_map_img:
@@ -257,17 +257,17 @@ class AutoBotEgo(nn.Module):
             map_features = orig_map_features.view(B * self.c, -1).unsqueeze(0).repeat(self.T, 1, 1)
         elif self.use_map_lanes:
             orig_map_features, orig_road_segs_masks = self.map_encoder(roads, ego_soctemp_emb)
-            print("orig_map_features: {}".format(orig_map_features.size()))
-            print("orig_road_segs_masks: {}".format(orig_road_segs_masks.size()))
+            #print("orig_map_features: {}".format(orig_map_features.size()))
+            #print("orig_road_segs_masks: {}".format(orig_road_segs_masks.size()))
             map_features = orig_map_features.unsqueeze(2).repeat(1, 1, self.c, 1).view(-1, B*self.c, self.d_k)
-            print("map_features: {}".format(map_features.size()))
+            #print("map_features: {}".format(map_features.size()))
             road_segs_masks = orig_road_segs_masks.unsqueeze(1).repeat(1, self.c, 1).view(B*self.c, -1)
-            print("road_segs_masks: {}".format(road_segs_masks.size()))
+            #print("road_segs_masks: {}".format(road_segs_masks.size()))
 
         # Repeat the tensors for the number of modes for efficient forward pass.
         context = ego_soctemp_emb.unsqueeze(2).repeat(1, 1, self.c, 1)
         context = context.view(-1, B*self.c, self.d_k)
-        print("context: {}".format(context.size()))
+        #print("context: {}".format(context.size()))
 
         # AutoBot-Ego Decoding
         out_seq = self.Q.repeat(1, B, 1, 1).view(self.T, B*self.c, -1)
@@ -282,7 +282,7 @@ class AutoBotEgo(nn.Module):
                 out_seq = out_seq + ego_dec_emb_map
             out_seq = self.tx_decoder[d](out_seq, context, tgt_mask=time_masks, memory_key_padding_mask=env_masks)
         out_dists = self.output_model(out_seq).reshape(self.T, B, self.c, -1).permute(2, 0, 1, 3)
-        print("Out dist: {}".format(out_dists.size()))
+        #print("Out dist: {}".format(out_dists.size()))
         # Mode prediction
         mode_params_emb = self.P.repeat(1, B, 1)
         mode_params_emb = self.prob_decoder(query=mode_params_emb, key=ego_soctemp_emb, value=ego_soctemp_emb)[0]
