@@ -54,11 +54,11 @@ class MapEncoderPts(nn.Module):
         super(MapEncoderPts, self).__init__()
         self.dropout = dropout
         self.d_k = d_k
-        print(d_k)
+        #print(d_k)
         self.map_attr = map_attr
         init_ = lambda m: init(m, nn.init.xavier_normal_, lambda x: nn.init.constant_(x, 0), np.sqrt(2))
 
-        print("Map Encoders Pts")
+        #print("Map Encoders Pts")
         self.road_pts_lin = nn.Sequential(init_(nn.Linear(map_attr, self.d_k)))
         self.road_pts_attn_layer = nn.MultiheadAttention(self.d_k, num_heads=8, dropout=self.dropout)
         self.norm1 = nn.LayerNorm(self.d_k, eps=1e-5)
@@ -87,20 +87,20 @@ class MapEncoderPts(nn.Module):
         P = roads.shape[2]
         road_segment_mask, road_pts_mask = self.get_road_pts_mask(roads)
         road_pts_feats = self.road_pts_lin(roads[:, :, :, :self.map_attr]).view(B*S, P, -1).permute(1, 0, 2)
-        print("Road points feature size: {}".format(road_pts_feats.size()))
+        #print("Road points feature size: {}".format(road_pts_feats.size()))
 
         # Combining information from each road segment using attention with agent contextual embeddings as queries.
         agents_emb = agents_emb[-1].unsqueeze(2).repeat(1, 1, S, 1).view(-1, self.d_k).unsqueeze(0)
-        print("Agents embeddings size: {}".format(agents_emb.size()))
+        #print("Agents embeddings size: {}".format(agents_emb.size()))
         road_seg_emb = self.road_pts_attn_layer(query=agents_emb, key=road_pts_feats, value=road_pts_feats,
                                                 key_padding_mask=road_pts_mask)[0]
-        print("Road segments embeddings size: {}".format(road_seg_emb.size()))
+        #print("Road segments embeddings size: {}".format(road_seg_emb.size()))
         road_seg_emb = self.norm1(road_seg_emb)
         road_seg_emb2 = road_seg_emb + self.map_feats(road_seg_emb)
         road_seg_emb2 = self.norm2(road_seg_emb2)
-        print("Road segments 2 embeddings size: {}".format(road_seg_emb2.size()))
+        #print("Road segments 2 embeddings size: {}".format(road_seg_emb2.size()))
         road_seg_emb = road_seg_emb2.view(B, S, -1)
-        print("Road segments embeddings size after view: {}".format(road_seg_emb.size()))
+        #print("Road segments embeddings size after view: {}".format(road_seg_emb.size()))
         return road_seg_emb.permute(1, 0, 2), road_segment_mask
 
 class MapEncoderPtsMA(nn.Module):
@@ -118,7 +118,7 @@ class MapEncoderPtsMA(nn.Module):
 
         # Seed parameters for the map
         self.map_seeds = nn.Parameter(torch.Tensor(1, 1, self.d_k), requires_grad=True)
-        print(self.map_seeds.size())
+        #print(self.map_seeds.size())
         nn.init.xavier_uniform_(self.map_seeds)
 
         self.road_pts_lin = nn.Sequential(init_(nn.Linear(self.map_attr, self.d_k)))
