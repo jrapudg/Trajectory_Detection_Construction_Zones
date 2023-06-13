@@ -1,8 +1,11 @@
 import cv2
 import os
 import math
+import sys
+sys.path.append("/home/juan/Documents/trajectory_prediction/projects/Trajectory_Detection_Construction_Zones")
 
-from nuscenes.construction_utils import convert_coordinates_to_ego, get_box_points
+
+from datasets.nuscenes.construction_utils import convert_coordinates_to_ego, get_box_points
 
 from nuscenes.prediction.input_representation.agents import AgentBoxesWithFadedHistory
 from nuscenes.prediction.input_representation.combinators import Rasterizer
@@ -63,10 +66,9 @@ class NuScenesDataset(Dataset):
     def __init__(self, data_root, split_name, version, ego_range=(25, 25, 10, 50), debug=False, num_others=10):
 
         super(NuScenesDataset).__init__()
-        nusc = NuScenes(version=version, dataroot=data_root)
 
-        self.nusc = nusc
-        self._helper = PredictHelper(nusc)
+        self.nusc = NuScenes(version=version, dataroot=data_root)
+        self._helper = PredictHelper(self.nusc)
         self._dataset = get_prediction_challenge_split(split_name, dataroot=data_root)
         self._use_pedestrians = False
         self._use_only_moving_vehicles = True
@@ -163,6 +165,8 @@ class NuScenesDataset(Dataset):
                     object_points.append(np.vstack([augmented_points, np.zeros((self._number_future_road_points-5, 4))]))
         
         object_points = np.array(object_points)
+        if object_points.shape[0] == 0:
+            return np.zeros((self._max_number_construction_objs, self._number_future_road_points, 4))
         indices = np.argsort(np.linalg.norm(object_points[:,0,:], axis=1)).tolist()   
         object_points = object_points[indices]
         n_objs, _, _ = object_points.shape
@@ -284,6 +288,7 @@ class NuScenesDataset(Dataset):
 
     def __getitem__(self, idx: int):
         instance_token, sample_token = self._dataset[idx].split("_")
+        #print(sample_token)
         annotation = self._helper.get_sample_annotation(instance_token, sample_token)
         ego_type = [annotation['category_name']]
         road_img = self._static_layer_rasterizer.make_representation(instance_token, sample_token)

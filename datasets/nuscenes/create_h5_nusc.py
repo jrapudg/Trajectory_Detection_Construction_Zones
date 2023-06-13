@@ -3,6 +3,9 @@ import argparse
 import h5py
 import os
 import numpy as np
+import sys
+sys.path.append("/home/juan/Documents/trajectory_prediction/projects/Trajectory_Detection_Construction_Zones")
+
 
 from datasets.nuscenes.raw_dataset import NuScenesDataset
 
@@ -33,7 +36,7 @@ if __name__ == '__main__':
     nuscenes = NuScenesDataset(data_root=args.raw_dataset_path, split_name=args.split_name,
                                version='v1.0-trainval', ego_range=args.ego_range, num_others=max_num_agents)
     num_scenes = len(nuscenes)
-
+    print("Num Scenes {}\n".format(num_scenes) )
     f = h5py.File(os.path.join(args.output_h5_path, args.split_name + '_dataset.hdf5'), 'w')
     ego_trajectories = f.create_dataset("ego_trajectories", shape=(num_scenes, 18, 3), chunks=(1, 18, 3), dtype=np.float32)
     agent_trajectories = f.create_dataset("agents_trajectories", shape=(num_scenes, 18, max_num_agents, 3), chunks=(1, 18, max_num_agents, 3), dtype=np.float32)
@@ -63,6 +66,6 @@ if __name__ == '__main__':
             curr_agent_types.append("None")
         agent_types_ascii = [n.encode("ascii", "ignore") for n in curr_agent_types]
         agent_types[i] = agent_types_ascii
-
+        #print("Road points: {}\n".format(data[5].shape))
         road_pts[i] = data[5]
 
