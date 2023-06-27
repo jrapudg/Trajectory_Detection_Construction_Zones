@@ -18,14 +18,14 @@ class NuscenesH5Dataset(Dataset):
         self.use_map_lanes = use_map_lanes
         self.pred_horizon = 12
         self.num_others = 7
-        self.map_attr = 3
+        self.map_attr = 5
         self.predict_yaw = False
 
         if "Joint" in model_type:
-            self.k_attr = 4
+            self.k_attr = 5
             self.use_joint_version = True
         else:
-            self.k_attr = 2
+            self.k_attr = 3
             self.use_joint_version = False
 
         if self.use_joint_version and self.use_map_img:
@@ -114,6 +114,7 @@ class NuscenesH5Dataset(Dataset):
                     agent_types_id.append(type_to_onehot[i])
         agent_types_id = np.array(agent_types_id)
         if len(agent_types_id) < num_raw_agents+1:
+            #print("Agents_type: {}".format(agent_types_id))
             new_agent_types_id = np.zeros((num_raw_agents+1, self.num_agent_types)) - 1
             new_agent_types_id[:len(agent_types_id)] = agent_types_id
             agent_types_id = new_agent_types_id.copy()
@@ -170,7 +171,7 @@ class NuscenesH5Dataset(Dataset):
         if len(args_closest_roads) >= N:
             per_agent_roads = [roads[args_closest_roads[:N]]]
         else:
-            ego_roads = np.zeros((N, 40, 4))
+            ego_roads = np.zeros((N, 40, 5))
             ego_roads[:len(args_closest_roads)] = roads[args_closest_roads]
             per_agent_roads = [ego_roads]
 
@@ -181,11 +182,11 @@ class NuscenesH5Dataset(Dataset):
                     if len(args_closest_roads) >= N:
                         per_agent_roads.append(roads[args_closest_roads[:N]])
                     else:
-                        agent_roads = np.zeros((N, 40, 4))
+                        agent_roads = np.zeros((N, 40, 5))
                         agent_roads[:len(args_closest_roads)] = roads[args_closest_roads]
                         per_agent_roads.append(agent_roads)
                 else:
-                    per_agent_roads.append(np.zeros((N, 40, 4)))
+                    per_agent_roads.append(np.zeros((N, 40, 5)))
 
         roads = np.array(per_agent_roads)
         roads[:, :, :, 2][np.where(roads[:, :, :, 2] < 0.0)] += 2 * np.pi  # making all orientations between 0 and 2pi
