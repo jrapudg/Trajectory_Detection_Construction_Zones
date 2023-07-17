@@ -25,6 +25,7 @@ from nuscenes.prediction.helper import quaternion_yaw, convert_global_coords_to_
 import matplotlib.pyplot as plt
 import numpy as np
 
+CONSTRUCTION_COST = 100
 
 def is_insquare(points, car_pos, ego_range):
     if (car_pos[0] - ego_range[0] < points[0] < car_pos[0] + ego_range[1]) and \
@@ -63,10 +64,11 @@ def load_all_maps(helper: PredictHelper, verbose: bool = False) -> Dict[str, NuS
 
 
 class NuScenesDataset(Dataset):
-    def __init__(self, data_root, split_name, version, ego_range=(25, 25, 10, 50), debug=False, num_others=10):
+    def __init__(self, data_root, split_name, version, ego_range=(25, 25, 10, 50), debug=False, num_others=10, just_filter=False):
 
         super(NuScenesDataset).__init__()
 
+        self.just_filter = just_filter
         self.nusc = NuScenes(version=version, dataroot=data_root)
         self._helper = PredictHelper(self.nusc)
         self._dataset = get_prediction_challenge_split(split_name, dataroot=data_root)
@@ -141,7 +143,8 @@ class NuScenesDataset(Dataset):
     def filter_construction_objects(self, sample_token, ego_vehicle):
         object_points = []
         sample_info = self.nusc.get('sample', sample_token)
-        
+        are_there_barriers = False
+        are_there_cones = False
         for instance_token in sample_info['anns']:
             instance = self.nusc.get('sample_annotation', instance_token)
             if instance['category_name'] in ["movable_object.barrier", 
@@ -160,21 +163,24 @@ class NuScenesDataset(Dataset):
                 if is_insquare(rotated_points[0], [0., 0.], self.ego_range):
                     augmented_points = np.hstack([rotated_points, 
                                                   (instance['translation'][-1]-ego_vehicle['translation'][-1])*np.ones((5,1)), 
-                                                  np.ones((5,2))])
-                    
+                                                  CONSTRUCTION_COST * np.ones((5,1)), np.ones((5,1))])
+                    if instance['category_name'] == "movable_object.barrier":
+                        are_there_barriers = True
+                    elif instance['category_name'] == "movable_object.trafficcone":
+                        are_there_cones = True
                     object_points.append(np.vstack([augmented_points, np.zeros((self._number_future_road_points-5, 5))]))
         
         object_points = np.array(object_points)
         if object_points.shape[0] == 0:
-            return np.zeros((self._max_number_construction_objs, self._number_future_road_points, 5))
+            return np.zeros((self._max_number_construction_objs, self._number_future_road_points, 5)), (False, False)
         indices = np.argsort(np.linalg.norm(object_points[:,0,:], axis=1)).tolist()   
         object_points = object_points[indices]
         n_objs, _, _ = object_points.shape
         
         if n_objs >= self._max_number_construction_objs:
-            return object_points[:self._max_number_construction_objs,:,:]
+            return object_points[:self._max_number_construction_objs,:,:], (are_there_barriers, are_there_cones)
         else:
-            return np.vstack([object_points, np.zeros((self._max_number_construction_objs-n_objs,self._number_future_road_points,5))])
+            return np.vstack([object_points, np.zeros((self._max_number_construction_objs-n_objs,self._number_future_road_points,5))]), (are_there_barriers, are_there_cones)
 
     def _get_map_features(self, nusc_map, x, y, yaw, radius, reference_position):
         curr_map = np.zeros((self._max_number_roads, self._number_future_road_points, 5))
@@ -289,8 +295,13 @@ class NuScenesDataset(Dataset):
 
     def __getitem__(self, idx: int):
         instance_token, sample_token = self._dataset[idx].split("_")
-        #print(sample_token)
+
         annotation = self._helper.get_sample_annotation(instance_token, sample_token)
+        construction_points, are_there_construction = self.filter_construction_objects(sample_token, annotation)
+
+        if self.just_filter:
+            return None, None, None, [are_there_construction], None, None
+            
         ego_type = [annotation['category_name']]
         road_img = self._static_layer_rasterizer.make_representation(instance_token, sample_token)
         road_img = cv2.resize(road_img, (750, 750))
@@ -349,9 +360,8 @@ class NuScenesDataset(Dataset):
                         rotated_map[road_idx, pt_idx, 2] = raw_map[road_idx, pt_idx, 2] - annotation['translation'][-1]
                         rotated_map[road_idx, pt_idx, -1] = 1
 
-        construction_points = self.filter_construction_objects(sample_token, annotation)
         augmented_map = np.vstack([rotated_map, construction_points])
-        extras = [instance_token, sample_token, annotation['translation'], annotation['rotation'], map_name]
+        extras = [instance_token, sample_token, annotation['translation'], annotation['rotation'], map_name, are_there_construction]
         return ego_array, agents_array.transpose((1, 0, 2)), road_img, extras, agent_types, augmented_map
 
     def __len__(self):

@@ -47,10 +47,12 @@ class Trainer:
 
     def initialize_dataloaders(self):
         if "Nuscenes" in self.args.dataset:
-            train_dset = NuscenesH5Dataset(dset_path=self.args.dataset_path, split_name="train",
+            train_dset = NuscenesH5Dataset(dset_path=self.args.dataset_path, split_name="train_cz",
                                            model_type=self.args.model_type, use_map_img=self.args.use_map_image,
                                            use_map_lanes=self.args.use_map_lanes)
-            val_dset = NuscenesH5Dataset(dset_path=self.args.dataset_path, split_name="val",
+            #split_name="val_v_cz"
+            #split_name="train_t_cz"
+            val_dset = NuscenesH5Dataset(dset_path=self.args.dataset_path, split_name="val_cz",
                                          model_type=self.args.model_type, use_map_img=self.args.use_map_image,
                                          use_map_lanes=self.args.use_map_lanes)
 
